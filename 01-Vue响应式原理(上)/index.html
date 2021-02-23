@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      /*
+            1.Vue响应式的原理(数据改变界面就会改变)是什么?
+            时时监听数据变化, 一旦数据发生变化就更新界面
+            2.Vue是如何实现时时监听数据变化的?
+            通过原生JS的defineProperty方法
+            3.defineProperty方法的特点
+            可以直接在一个对象上定义一个新属性，或者修改一个对象的现有属性， 并返回这个对象
+            4.defineProperty用法
+            obj: 需要操作的对象
+            prop: 需要操作的属性
+            descriptor: 属性描述符object {}
+            Object.defineProperty(obj, prop, descriptor)
+            5.defineProperty get/set方法特点 监听属性变化
+            只要通过defineProperty给某个属性添加了get/set方法
+            那么以后只要获取这个属性的值就会自动调用get, 设置这个属性的值就会自动调用set
+        * */
+      let obj = {};
+      let oldValue = '卢锡安'
+      Object.defineProperty(obj, "name", {
+        // 可以通过value 来告诉defineProperty 方法新增的属性取值是什么
+        // value: "菲欧娜",
+        // 默认情况下通过defineProperty新增的属性的取值是不能修改的和删除的
+        // 如果想修改，那么就必须显示的告诉defineProperty方法 writable:true
+        // writable: true,
+        // 如果想删除，那么就必须显示的告诉defineProperty方法 configurable:true
+        configurable: true,
+        // 如果想遍历新增的属性，那么需要加上enumerable:true
+        enumerable: true,
+        get() {
+          console.log("get方法被执行了");
+          return oldValue;
+        },
+        set(newValue) {
+          if(oldValue !== newValue){
+              console.log("set方法被执行了obj.name：",newValue);
+              oldValue = newValue;
+          }
+        },
+      });
+      console.log("defineProperty给obj赋值：", obj);
+      //   注意点1：默认情况下通过defineProperty新增的属性的取值是不能修改的
+      //   obj.name = "卢锡安";
+      //   console.log("修改name属性：", obj);
+      //   注意点2：默认情况下通过defineProperty新增的属性的取值是不能删除的
+      //   delete obj.name;
+      //   console.log("delete name属性：", obj);
+      //   注意点3：默认情况下通过defineProperty新增的属性是不能遍历的
+      //   for (const key in obj) {
+      //     console.log(`${key}----${obj[key]}`);
+      //   }
+      //   注意点4：如果设置了get/set方法, 那么就不能通过value直接赋值, 也不能编写writable:true
+      console.log('obj.name:',obj.name);
+      obj.name = '菲欧娜'
+
+    </script>
+  </body>
+</html>

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <script>
+      /*
+                1.Vue响应式的原理(数据改变界面就会改变)是什么?
+                时时监听数据变化, 一旦数据发生变化就更新界面
+                2.Vue是如何实现时时监听数据变化的?
+                通过原生JS的defineProperty方法
+                3.defineProperty方法的特点
+                可以直接在一个对象上定义一个新属性，或者修改一个对象的现有属性， 并返回这个对象
+                4.defineProperty用法
+                obj: 需要操作的对象
+                prop: 需要操作的属性
+                descriptor: 属性描述符object {}
+                Object.defineProperty(obj, prop, descriptor)
+                5.defineProperty get/set方法特点 监听属性变化
+                只要通过defineProperty给某个属性添加了get/set方法
+                那么以后只要获取这个属性的值就会自动调用get, 设置这个属性的值就会自动调用set
+            * */
+
+      // 需求：传入一个对象 到Observe类中，快速监听这个对象的所有属性
+      class Observe {
+        constructor(data) {
+          this.observer(data);
+        }
+        observer(obj) {
+          if (obj && typeof obj === "object") {
+            for (const key in obj) {
+              this.defineReactive(obj, key, obj[key]);
+            }
+          }
+        }
+        defineReactive(obj, key, value) {
+          this.observer(value)
+          Object.defineProperty(obj, key, {
+            get() {
+              return value;
+            },
+            set: (newVal) => {
+              if (newVal !== value) {
+                this.observer(newVal);
+                value = newVal;
+                console.log(`监听到${key}属性的变化`);
+              }
+            },
+          });
+        }
+      }
+
+      const obj = { name: "张三", age: 18, level: {max:100} };
+      new Observe(obj);
+      obj.level.max=99
+      obj.name={a:'111'}
+      obj.name.a = 123
+      // console.log(obj);
+    </script>
+  </body>
+</html>

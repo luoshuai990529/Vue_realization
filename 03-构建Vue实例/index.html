@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app">
+      <input type="text" v-model="name" />
+      <input type="text" v-model="obj.attack" />
+      <input type="text" v-model="obj.speed" />
+      <div class="name">{{name}}</div>
+      <div class="age">{{age}}</div>
+      <div >{{name}}--{{age}}</div>
+      <ul>
+        <li>1</li>
+        <li>2</li>
+        <li>3</li>
+      </ul>
+      <div v-html="contentHtml"></div>
+      <div v-text="contentText"></div>
+    </div>
+
+    <script src="./js/myVue.js"></script>
+    <script>
+      let vue = new MyVue({
+        el: "#app",
+        data: {
+          name: "亚克托斯",
+          age: 27,
+          obj: {
+            attack: 100,
+            speed: 120,
+          },
+          contentHtml:`<h2>我是h2标签</h2>`,
+          contentText:'<p>我是text文本</p>'
+        },
+      });
+     
+    </script>
+  </body>
+</html>

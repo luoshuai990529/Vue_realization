@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="app">
+      <input type="text" v-model="name" />
+      <input type="text" v-model="price" />
+      <input type="text" v-model="obj.speed" />
+      <div >{{ name }}--{{age}}</div>
+      <div >{{ obj.speed }}</div>
+      <ul>
+        <li>{{getCount}}</li>
+        <li>{{getCount}}</li>
+        <li>3</li>
+      </ul>
+      <div v-html="contentHtml" v-on:click="clickHandle"></div>
+      <div v-text="contentText"></div>
+    </div>
+
+    <script src="./js/myVue.js"></script>
+    <script>
+      let vue = new MyVue({
+        el: "#app",
+        data: {
+          name: "亚克托斯",
+          age: 27,
+          obj: {
+            attack: 100,
+            speed: 120,
+          },
+          price:998,
+          contentHtml:`<h2>我是h2标签</h2>`,
+          contentText:'<p>我是text文本</p>'
+        },
+        computed:{
+          getCount(){
+            console.log('执行计算属性：getCount,this.name:',this.name);
+            const result = this.name+99
+            return result
+          }
+        },
+        methods: {
+          clickHandle(e){
+            this.name = '菲欧娜'
+            console.log('点击事件',this.name);
+          },
+          renderName(){
+            return `千百味大优惠价格只要${this.price}`
+          }
+        },
+      });
+      console.log(vue);
+     
+    </script>
+  </body>
+</html>

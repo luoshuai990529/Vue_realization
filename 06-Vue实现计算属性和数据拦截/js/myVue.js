@@ -1,266 +1,409 @@
-let CompilerUtil = {
-    getValue(vm, value){
-        // time.h --> [time, h]
-       return value.split('.').reduce((data, currentKey) => {
-            // 第一次执行: data=$data, currentKey=time
-            // 第二次执行: data=time, currentKey=h
-            return data[currentKey.trim()];
-        }, vm.$data);
+let uid = 0;
+let count = 0
+class Dep {
+    constructor() {
+        this.id = uid++
+        this.deps = []
+    }
+    addDeps(watcher, key) {
+        this.deps.push({ key, watcher })
+    }
+    depend(key) {
+        for (let i = 0; i < this.deps.length; i++) {
+            // 防止添加重复依赖
+            if (this.deps[i].key == `${key}_${Dep.target.getter.name}`) {
+                return
+            }
+        }
+        if (Dep.target) {
+            Dep.target.addDeps(this, key)
+        }
+    }
+    notify(watcher) {
+        console.log('1-执行dep的notify方法，调用watcher的更新');
+        watcher.update()
+    }
+}
+let cdep = new Dep()
+const CompilerUtil = {
+    getValue(value, data) {
+        const result = value.split('.').reduce((data, currentKey) => {
+            // console.log(data,currentKey,data[currentKey]);
+            return data[currentKey.trim()]
+        }, data)
+        return result
     },
-    getContent(vm, value){
+    getContent(value, data) {
         // console.log(value); //  {{name}}-{{age}} -> 李南江-{{age}}  -> 李南江-33
         let reg = /\{\{(.+?)\}\}/gi;
-        let val = value.replace(reg, (...args) => {
+        let result = value.replace(reg, (...args) => {
             // 第一次执行 args[1] = name
             // 第二次执行 args[1] = age
-            // console.log(args);
-            return this.getValue(vm, args[1]); // 李南江, 33
+            return this.getValue(args[1], data);
         });
-        // console.log(val);
-        return val;
+        return result;
     },
-    setValue(vm, attr, newValue){
-        attr.split('.').reduce((data, currentAttr, index, arr)=>{
-            if(index === arr.length - 1){
-                data[currentAttr] = newValue;
+    setValue(inputVal, attr, data) {
+        attr.split('.').reduce((data, currentKey, index, arr) => {
+            // console.log('当前index：', index, '数组长度：', arr.length);
+            if (index === arr.length - 1) {
+                // 取到最后一层才赋值
+                data[currentKey] = inputVal;
             }
-            return data[currentAttr];
-        }, vm.$data)
+            // 下一次循环的data就是 return出去的
+            return data[currentKey]
+        }, data)
     },
-    model: function (node, value, vm) { // value=name  value=time.h
-        // 第二步: 在第一次渲染的时候, 就给所有的属性添加观察者
-        new Watcher(vm, value, (newValue, oldValue)=>{
-            node.value = newValue;
-            // debugger;
-        });
-        let val = this.getValue(vm, value);
-        node.value = val;
-
-        node.addEventListener('input', (e)=>{
-            let newValue = e.target.value;
-            this.setValue(vm, value, newValue);
+    model: function (node, value, data) {
+        new Watcher(data, value, (newValue, oldValue) => {
+            node.value = newValue
+        })
+        node.value = this.getValue(value, data)
+        node.addEventListener('input', (e) => {
+            let inputVal = e.target.value;
+            this.setValue(inputVal, value, data)
         })
     },
-    html: function (node, value, vm) {
-        new Watcher(vm, value, (newValue, oldValue)=>{
-            node.innerHTML = newValue;
-            // debugger;
-        });
-        let val = this.getValue(vm, value);
-        node.innerHTML = val;
-    },
-    text: function (node, value, vm) {
-        new Watcher(vm, value, (newValue, oldValue)=>{
-            node.innerText = newValue;
-            // debugger;
-        });
-        let val = this.getValue(vm, value);
-        node.innerText = val;
-    },
-    content: function (node, value, vm) {
-        let reg = /\{\{(.+?)\}\}/gi;
-        // 外层是为了拿到属性名称
-        let val = value.replace(reg, (...args)=>{
-            // 内层是为了保证数据完整性
-            new Watcher(vm, args[1], (newValue, oldValue)=>{
-                node.textContent = this.getContent(vm, value);
-            });
-            return this.getValue(vm, args[1]);
-        });
-        node.textContent = val;
-    },
-    on: function (node, value, vm, type) {
-        node.addEventListener(type, (e)=>{
-            // alert('事件注册成功了');
-            vm.$methods[value].call(vm, e);
+    html: function (node, value, data) {
+        new Watcher(data, value, (newValue, oldValue) => {
+            node.innerHTML = newValue
         })
+        node.innerHTML = this.getValue(value, data)
+    },
+    text: function (node, value, data) {
+        new Watcher(data, value, (newValue, oldValue) => {
+            node.innerText = newValue
+        })
+        node.innerText = this.getValue(value, data)
+    },
+    content: function (node, text, data, vm) {
+        let reg = /\{\{(.+?)\}\}/gi
+        /* 
+        你可以指定一个函数作为第二个参数。在这种情况下，当匹配执行后，该函数就会执行。 函数的返回值作为替换字符串。
+        另外要注意的是，如果第一个参数是正则表达式，并且其为全局匹配模式，那么这个方法将被多次调用，每次匹配都会被调用。
+        */
+        node.textContent = text.replace(reg, (...args) => {
+            new Watcher(data, args[1], (newValue, oldValue) => {
+                node.textContent = this.getContent(text, data)
+            })
+            return this.getValue(args[1], data) ? this.getValue(args[1], data) : this.getComputedVal(args[1], vm, node)
+        })
+    },
+    on: function (node, value, data, directiveType, vm) {
+        node.addEventListener(directiveType, (e) => {
+            vm.$methods[value].call(vm, e)
+        })
+    },
+    getComputedVal: function (name, vm, node) {
+        cdep.deps.forEach((item, index) => {
+            if (item.watcher.getter.name == name) {
+                item.watcher.nodeList.push({ key: item.key, node })
+                console.log('=====模板编译到计算属性添加node节点到watcher', node, item.watcher.nodeList);
+            }
+        })
+        let value = vm[name]
+        return value
     }
 }
 class MyVue {
-    constructor(options){
-        // 1.保存创建时候传递过来的数据
-        if(this.isElement(options.el)){
-            this.$el = options.el;
-        }else{
-            this.$el = document.querySelector(options.el);
+    constructor(options) {
+        // 挂载 el 和 data
+        if (this.isElement(options.el)) {
+            this.$el = options.el
+        } else {
+            this.$el = document.querySelector(options.el)
         }
-        this.$data = options.data;
-        this.proxyData();
-        this.$methods = options.methods;
-        this.$computed = options.computed;
-        // 将computed中的方法添加到$data中,
-        // 只有这样将来我们在渲染的时候才能从$data中获取到computed中定义的计算属性
-        this.computed2data();
-        // 2.根据指定的区域和数据去编译渲染界面
-        if(this.$el){
-            // 第一步: 给外界传入的所有数据都添加get/set方法
-            //         这样就可以监听数据的变化了
-            new Observer(this.$data);
-            new Compiler(this);
-        }
-    }
-    computed2data(){
-        for(let key in this.$computed){
-            Object.defineProperty(this.$data, key, {
-                get:()=>{
-                    return this.$computed[key].call(this)
-                }
-            })
+        this.$data = options.data
+        this.$methods = options.methods
+        this.$computed = options.computed
+        this.proxyMethod()//把方法代理到data
+        this.proxyData() //把data代理到vue实例
+        this.initComputed() //初始化计算属性
+        // this.proxyComputed()
+
+        // this.proxyComputed()
+        // 编译渲染指定区域
+        if (this.$el) {
+            new Observe(this.$data)
+            new Compiler(this)
+            count++
         }
     }
-    // 实现数据代理, 将$data上的数据添加到Vue实例上, 这样将来才能通过this.xxx直接获取数据
-    proxyData(){
-        for(let key in this.$data){
+    isElement(node) {
+        // 判断是否是元素节点
+        return node.nodeType === 1
+    }
+    proxyData() {
+        for (const key in this.$data) {
             Object.defineProperty(this, key, {
-                get: () => {
+                get() {
+                    // 如果get方法被触发了 就证明在方法或者 计算属性中调用了该值
+                    Dep.target && cdep.depend(key)
+                    console.log('2-获取对应依赖：', key, cdep.deps, cdep);
                     return this.$data[key]
+                },
+                set(newValue) {
+                    this.$data[key] = newValue
                 }
             })
         }
     }
-    // 判断是否是一个元素
-    isElement(node){
-        return node.nodeType === 1;
+    proxyMethod() {
+        for (const key in this.$methods) {
+            Object.defineProperty(this.$data, key, {
+                get: () => {
+                    return this.$methods[key].call(this)
+                }
+            })
+        }
+    }
+    initComputed() {
+        const watchers = this.computedWatchers = {}
+        for (const key in this.$computed) {
+            const userDef = this.$computed[key]
+            const getter = userDef
+            watchers[key] = new ComputedWatcher(this, getter, { lazy: false })
+            // WatcherDeps.target = watchers[key]
+            // console.log('初始化计算属性：', watchers[key], key,);
+            // const userDef = this.$computed[key]
+            this.defineComputed(this, key, userDef)
+            // WatcherDeps.target = null
+        }
+    }
+    defineComputed(vm, key, userDef) {
+        let sharedProperty = {}
+        if (typeof userDef === 'function') {
+            sharedProperty.get = this.createComputedGetter(key)
+        }
+        Object.defineProperty(vm, key, sharedProperty)
+    }
+    createComputedGetter(key) {
+        return function computedGetter() {
+            var watcher = this.computedWatchers && this.computedWatchers[key];
+            if (watcher) {
+                console.log('该计算属性getter触发，watcher：', watcher);
+                if (watcher.dirty) {
+                    watcher.evaluate();
+                }
+                // if (Dep.target) {
+                //     watcher.depend();
+                // }
+                return watcher.value
+            }
+        }
     }
 }
+
 class Compiler {
-    constructor(vm){
-        this.vm = vm;
-        // 1.将网页上的元素放到内存中
-        let fragment = this.node2fragment(this.vm.$el);
-        // 2.利用指定的数据编译内存中的元素
-        this.buildTemplate(fragment);
-        // 3.将编译好的内容重新渲染会网页上
-        this.vm.$el.appendChild(fragment);
+    constructor(vm) {
+        this.vm = vm
+        // 1.将节点添加至内存
+        let fragment = this.eleToFragment(this.vm.$el)
+        // 2.编译内存中的节点元素
+        this.buildTemplate(fragment)
+        // 3.将编译好的节点元素添加到页面
+        this.vm.$el.appendChild(fragment)
     }
-    node2fragment(app){
-        // 1.创建一个空的文档碎片对象
-        let fragment = document.createDocumentFragment();
-        // 2.编译循环取到每一个元素
-        let node = app.firstChild;
-        while (node){
-            // 注意点: 只要将元素添加到了文档碎片对象中, 那么这个元素就会自动从网页上消失
-            fragment.appendChild(node);
-            node = app.firstChild;
+    eleToFragment(el) {
+        let node = el.firstChild
+        let Fragment = document.createDocumentFragment()
+        while (node) {
+            Fragment.appendChild(node)
+            node = el.firstChild
         }
-        // 3.返回存储了所有元素的文档碎片对象
-        return fragment;
+        return Fragment
     }
-    buildTemplate(fragment){
-        let nodeList = [...fragment.childNodes];
-        nodeList.forEach(node=>{
-            // 需要判断当前遍历到的节点是一个元素还是一个文本
-            if(this.vm.isElement(node)){
-                // 是一个元素
-                this.buildElement(node);
-                // 处理子元素(处理后代)
-                this.buildTemplate(node);
-            }else{
-                // 不是一个元素
-                this.buildText(node);
+    buildTemplate(fragment) {
+        let nodeList = [...fragment.childNodes]
+        nodeList.forEach(node => {
+            if (this.vm.isElement(node)) {
+                // 是元素节点
+                this.buildEle(node)
+                this.buildTemplate(node)
+            } else {
+                // 不是元素节点
+                this.buildText(node)
             }
         })
     }
-    buildElement(node){
-        let attrs = [...node.attributes];
+    buildEle(node) {
+        let attrs = [...node.attributes]
         attrs.forEach(attr => {
-            /*
-            v-model='name': name=v-mode / value=name
-            v-on:click="myFn": name=v-on:click / value=myFn
-            * */
-            let {name, value} = attr;
-            // console.log(name, value);
-            if(name.startsWith('v-')){
-                let [directiveName, directiveType] = name.split(':'); // [v-on, click]
-                let [_, directive] = directiveName.split('-'); // [v, on]
-                CompilerUtil[directive](node, value, this.vm, directiveType);
+            const { name, value } = attr
+            if (name.startsWith('v-')) {
+                const [directiveName, directiveType] = name.split(':')
+                const [_, directive] = directiveName.split('-')
+                CompilerUtil[directive](node, value, this.vm.$data, directiveType, this.vm)
             }
         })
     }
-    buildText(node){
-        let content = node.textContent;
+    buildText(node) {
         let reg = /\{\{.+?\}\}/gi;
-        if(reg.test(content)){
-            CompilerUtil['content'](node, content, this.vm);
+        const text = node.textContent
+        if (reg.test(text)) {
+            CompilerUtil['content'](node, text, this.vm.$data, this.vm)
         }
     }
 }
-class Observer{
-    // 只要将需要监听的那个对象传递给Observer这个类
-    // 这个类就可以快速的给传入的对象的所有属性都添加get/set方法
-    constructor(data){
+// 监听data的类
+class Observe {
+    constructor(data) {
         this.observer(data);
     }
-    observer(obj){
-        if(obj && typeof obj === 'object'){
-            // 遍历取出传入对象的所有属性, 给遍历到的属性都增加get/set方法
-            for(let key in obj){
-                this.defineRecative(obj, key, obj[key])
+    observer(obj) {
+        if (obj && typeof obj === "object") {
+            for (const key in obj) {
+                this.defineReactive(obj, key, obj[key]);
             }
         }
     }
-    // obj: 需要操作的对象
-    // attr: 需要新增get/set方法的属性
-    // value: 需要新增get/set方法属性的取值
-    defineRecative(obj, attr, value){
-        // 如果属性的取值又是一个对象, 那么也需要给这个对象的所有属性添加get/set方法
-        this.observer(value);
-        // 第三步: 将当前属性的所有观察者对象都放到当前属性的发布订阅对象中管理起来
-        let dep = new Dep(); // 创建了属于当前属性的发布订阅对象
-        Object.defineProperty(obj, attr, {
-            get(){
-                Dep.target && dep.addSub(Dep.target);
-                // debugger;
+    defineReactive(obj, key, value) {
+        this.observer(value)
+        let dep = new Subscribe()
+        Object.defineProperty(obj, key, {
+            get() {
+                Subscribe.target && dep.addSub(Subscribe.target)
                 return value;
             },
-            set:(newValue)=>{
-                if(value !== newValue){
-                    // 如果给属性赋值的新值又是一个对象, 那么也需要给这个对象的所有属性添加get/set方法
-                    this.observer(newValue);
-                    value = newValue;
-                    dep.notify();
-                    console.log('监听到数据的变化, 需要去更新UI');
+            set: (newVal) => {
+                if (newVal !== value) {
+                    this.observer(newVal);
+                    value = newVal;
+                    console.log(`监听到${key}属性的变化 更新UI---deps:`, cdep.deps);
+                    cdep.deps.forEach(dep => {
+                        const { key: dkey, watcher } = dep
+                        if (dkey.startsWith(key)) {
+                            cdep.notify(watcher)
+                        }
+                    })
+                    dep.notify()
                 }
-            }
-        })
+            },
+        });
     }
 }
-// 想要实现数据变化之后更新UI界面, 我们可以使用发布订阅模式来实现
-// 先定义一个观察者类, 再定义一个发布订阅类, 然后再通过发布订阅的类来管理观察者类
-class Dep {
-    constructor(){
-        // 这个数组就是专门用于管理某个属性所有的观察者对象的
-        this.subs = [];
+// 发布订阅者
+class Subscribe {
+    constructor() {
+        this.subs = []
     }
-    // 订阅观察的方法
-    addSub(watcher){
-        this.subs.push(watcher);
+    addSub(watcher) {
+        if (watcher) {
+            this.subs.push(watcher)
+        }
     }
-    // 发布订阅的方法
-    notify(){
-        this.subs.forEach(watcher=>watcher.update());
+    notify() {
+        this.subs.forEach(sub => { sub.update() })
     }
 }
+// 想要实现数据变化之后更新UI界面，可以使用发布订阅模式来实现
+// 观察者
 class Watcher {
-    constructor(vm, attr, cb){
-        this.vm = vm;
+    constructor(data, attr, cb) {
+        this.data = data;
         this.attr = attr;
         this.cb = cb;
-        // 在创建观察者对象的时候就去获取当前的旧值
-        this.oldValue = this.getOldValue();
+        this.oldValue = this.getOldValue()
     }
-    getOldValue(){
-        Dep.target = this;
-        let oldValue = CompilerUtil.getValue(this.vm, this.attr);
-        Dep.target = null;
-        return oldValue;
+    getOldValue() {
+        Subscribe.target = this;
+        const result = CompilerUtil.getValue(this.attr, this.data)
+        Subscribe.target = null;
+        return result
     }
     // 定义一个更新的方法, 用于判断新值和旧值是否相同
-    update(){
-        let newValue = CompilerUtil.getValue(this.vm, this.attr);
-        if(this.oldValue !== newValue){
-            this.cb(newValue, this.oldValue);
+    update() {
+        let newValue = CompilerUtil.getValue(this.attr, this.data)
+        if (newValue !== this.oldValue) {
+            // console.log('新值newValue：',newValue,'旧值：',this.oldValue);
+            this.cb(newValue, this.oldValue)
             this.oldValue = this.getOldValue()
         }
     }
 }
+
+// computed 观察者
+class ComputedWatcher {
+    constructor(vm, getter, options, cb) {
+        this.vm = vm
+        this.getter = getter
+        this.lazy = options.lazy
+        this.dirty = this.lazy
+        this.cb = cb
+        this.deps = []
+        this.nodeList = []
+        this.newDeps = [];
+        this.depIds = new Set();
+        this.newDepIds = new Set();
+        this.value = this.lazy ? undefined : this.get()
+    }
+    get() {
+        pushTarget(this)
+        let value;
+        let vm = this.vm
+        value = this.getter.call(vm, vm)
+        // popTarget();
+        this.dirty = false;
+        // this.cleanupDeps();
+        console.log('3-调用watcher的get方法，计算得到value的值', value);
+        return value
+    }
+    // 添加一个watcher依赖到这个指令
+    addDeps(dep, key) {
+        // let id = dep.id;
+        // this.deps.push(key)
+        // if (!this.newDepIds.has(id)) {
+        // this.newDepIds.add(id);
+        // this.newDeps.push(dep);
+        // if (!this.depIds.has(id)) {
+        // _${this.getter.name}
+        dep.addDeps(this, `${key}_${this.getter.name}`);
+        // }
+        // }
+    }
+    // Clean up for dependency collection
+    // cleanupDeps() {
+    // }
+    // Will be called when a dependency changes.
+    update() {
+        console.log('2-依赖发生改变，重新计算值，并更新node节点', this);
+        this.dirty = true
+        if (this.dirty) {
+            this.evaluate()
+            this.nodeList.forEach(item => {
+                item.node.textContent = this.value
+            })
+        }
+    }
+    // Evaluate the value of the watcher. This only gets called for lazy watchers.
+    evaluate() {
+        console.log('evaluate方法：计算watcher的值，修改dirty为false表示计算过');
+        this.value = this.get()
+        this.dirty = false //表示取过值了
+    }
+    // Depend on all deps collected by this watcher.
+    // depend() {
+    //     var i = this.deps.length;
+    //     while (i--) {
+    //         this.deps[i].depend();
+    //     }
+    // }
+}
+
+
+
+
+// The current target watcher being evaluated.
+// This is globally unique because only one watcher
+// can be evaluated at a time.
+Dep.target = null;
+let targetStack = []
+function pushTarget(target) {
+    console.log('1-执行pushTarget，给Dep.target赋值watcher', target);
+    targetStack.push(target);
+    Dep.target = target
+}
+// function popTarget() {
+//     targetStack.pop()
+//     Dep.target = targetStack[targetStack.length - 1]
+// }

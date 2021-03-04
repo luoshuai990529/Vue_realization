@@ -16,7 +16,7 @@
       <ul>
         <li>{{getCount}}</li>
         <li>{{getCount}}</li>
-        <li>3</li>
+        <li>{{getFillName}}</li>
       </ul>
       <div v-html="contentHtml" v-on:click="clickHandle"></div>
       <div v-text="contentText"></div>
@@ -39,9 +39,13 @@
         },
         computed:{
           getCount(){
-            console.log('执行计算属性：getCount,this.name:',this.name);
-            const result = this.name+99
+            console.log('--------------计算属性getCount执行------------------');
+            const result = this.name+this.price
             return result
+          },
+          getFillName(){
+            console.log('--------------计算属性getFillName执行------------------');
+            return this.price
           }
         },
         methods: {

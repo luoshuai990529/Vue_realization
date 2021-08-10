@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div id="box"></div>
+    <script>
+      /* 
+			Proxy 对象用于创建一个对象的代理，从而实现基本操作的拦截和自定义（如属性查找、赋值、枚举、函数调用等）。
+			@params:
+				target:要拦截的目标对象
+				handler:一个对象，用来定制拦截行为
+			
+			const p = new Proxy(target, handler)
+		*/
+
+      // 1.基础示例
+      const handler = {
+        get: (obj, prop, receiver) => {
+          // obj：目标对象
+          // prop：操作的属性名
+          // receiver：proxy实例
+          return '王大锤';
+        },
+      };
+      const p = new Proxy({}, handler);
+      console.log(p.a); // 王大锤
+
+      // 2.无操作转发代理(代理会将所有应用到它的操作转发到这个对象上)
+      const emptyObj = {};
+      const p2 = new Proxy(emptyObj, {});
+      p2.name = '凯尔萨斯';
+      console.log(emptyObj.name); // 凯尔萨斯
+
+      // 3.handler操作一共有13种 详细见：https://es6.ruanyifeng.com/#docs/proxy https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Proxy
+      /* 
+	 	get(target, propKey, receiver)：拦截对象属性的读取，比如proxy.foo和proxy['foo']
+		set(target, propKey, value, receiver)：拦截对象属性的设置，比如proxy.foo = v或proxy['foo'] = v，返回一个布尔值。
+		has(target, propKey)：拦截propKey in proxy的操作，返回一个布尔值。
+		deleteProperty(target, propKey)：拦截delete proxy[propKey]的操作，返回一个布尔值。
+		ownKeys(target)：拦截Object.getOwnPropertyNames(proxy)、Object.getOwnPropertySymbols(proxy)、Object.keys(proxy)、for...in循环，返回一个数组。
+			该方法返回目标对象所有自身的属性的属性名，而Object.keys()的返回结果仅包括目标对象自身的可遍历属性。
+		getOwnPropertyDescriptor(target, propKey)：拦截Object.getOwnPropertyDescriptor(proxy, propKey)，返回属性的描述对象。
+		defineProperty(target, propKey, propDesc)：拦截Object.defineProperty(proxy, propKey, propDesc）、Object.defineProperties(proxy, propDescs)，返回一个布尔值。
+		preventExtensions(target)：拦截Object.preventExtensions(proxy)，返回一个布尔值。
+		getPrototypeOf(target)：拦截Object.getPrototypeOf(proxy)，返回一个对象。
+		isExtensible(target)：拦截Object.isExtensible(proxy)，返回一个布尔值。
+		setPrototypeOf(target, proto)：拦截Object.setPrototypeOf(proxy, proto)，返回一个布尔值。如果目标对象是函数，那么还有两种额外操作可以拦截。
+		apply(target, object, args)：拦截 Proxy 实例作为函数调用的操作，比如proxy(...args)、proxy.call(object, ...args)、proxy.apply(...)。
+		construct(target, args)：拦截 Proxy 实例作为构造函数调用的操作，比如new proxy(...args)。
+	  */
+
+      // 4.Proxy.revocable()方法返回一个可取消的 Proxy 实例。
+      //   let target2 = {};
+      //   let handler2 = {};
+
+      //   let { proxy, revoke } = Proxy.revocable(target2, handler2);
+
+      //   proxy.foo = 123;
+      //   console.log('proxy.foo---', proxy.foo); // 123
+
+      //   revoke(); // 取消proxy实例
+      //   console.log('proxy.foo---', proxy.foo); // TypeError: Revoked
+
+      console.log('=======================Map-WeakMap======================');
+      /* 
+	 	JavaScript 的对象（Object），本质上是键值对的集合（Hash 结构），但是传统上只能用 字符串 当作键。这给它的使用带来了很大的限制。
+	  	Map实例方法：
+	  		map.set(key,value) map.get(key) map.has(key) map.delete(key)
+			Map.prototype.keys()：返回键名的遍历器。
+			Map.prototype.values()：返回键值的遍历器。
+			Map.prototype.entries()：返回所有成员的遍历器。
+			Map.prototype.forEach()：遍历 Map 的所有成员。
+        Map 的键实际上是跟内存地址绑定的，只要内存地址不一样，就视为两个键。
+	    	例：const map = new Map();
+			const k1 = ['a'];
+			const k2 = ['a'];
+			map.set(k1, 111).set(k2, 222);
+			map.get(k1) // 111
+			map.get(k2) // 222
+	  */
+      const map = new Map([
+        ['F', 'no'],
+        ['T', 'yes'],
+      ]);
+      console.log(map.values()); //MapIterator {"no", "yes"}
+      console.log(map.keys()); // MapIterator {"F", "T"}
+      console.log(map.entries()); // MapIterator {"F" => "no", "T" => "yes"}
+
+      // 2-WeakMap:WeakMap只接受对象作为键名（null除外），不接受其他类型的值作为键名。
+      const weakmap = new WeakMap();
+      weakmap.set({ name: 'zs' }, 18);
+      //   weakmap.set(1, 2);
+      // TypeError: 1 is not an object!
+      //   weakmap.set(Symbol(), 2);
+      // TypeError: Invalid value used as weak map key
+      //   weakmap.set(null, 2);
+      // TypeError: Invalid value used as weak map key
+
+      // WeakMap的设计目的在于，有时我们想在某个对象上面存放一些数据，但是这会形成对于这个对象的引用。
+      class Person {
+        constructor(name) {
+          this.name = name;
+        }
+      }
+      let person1 = new Person('张三');
+      let person2 = new Person('李四');
+      // 下面的数组形成了parr对e1和e2的引用。当不需要person1，person2时必须手动删除  parr[0]=null parr[1]=null
+      const parr = [
+        [person1, 18],
+        [person2, 20],
+      ];
+      console.log('arr-', parr);
+      // WeakMap 就是为了解决这个问题而诞生的，它的键名所引用的对象都是弱引用，即垃圾回收机制不将该引用考虑在内。
+      // 只要所引用的对象的其他引用都被清除，垃圾回收机制就会释放该对象所占用的内存。
+      // 也就是说，一旦不再需要，WeakMap 里面的键名对象和所对应的键值对会自动消失，不用手动删除引用。
+
+      // 3-一个典型应用场景是，在网页的 DOM 元素上添加数据，就可以使用WeakMap结构。当该 DOM 元素被清除，其所对应的WeakMap记录就会自动被移除。
+      const wm = new WeakMap();
+
+      const element = document.getElementById('box');
+      wm.set(element, 'some information');
+      console.log(wm.get(element)); // "some information"
+      // 总结：WeakMap的专用场合就是，它的键所对应的对象，可能会在将来消失。WeakMap结构有助于防止内存泄漏。
+
+      console.log('=======================Reflect======================');
+    </script>
+  </body>
+</html>

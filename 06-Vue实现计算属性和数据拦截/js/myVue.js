@@ -162,12 +162,10 @@ class MyVue {
         for (const key in this.$computed) {
             const userDef = this.$computed[key]
             const getter = userDef
+			// 初始化计算属性dirty
             watchers[key] = new ComputedWatcher(this, getter, { lazy: false })
-            // WatcherDeps.target = watchers[key]
-            // console.log('初始化计算属性：', watchers[key], key,);
-            // const userDef = this.$computed[key]
+            console.log('初始化计算属性实例：', watchers[key], key,);
             this.defineComputed(this, key, userDef)
-            // WatcherDeps.target = null
         }
     }
     defineComputed(vm, key, userDef) {
@@ -175,10 +173,12 @@ class MyVue {
         if (typeof userDef === 'function') {
             sharedProperty.get = this.createComputedGetter(key)
         }
-        Object.defineProperty(vm, key, sharedProperty)
+		// 只要调用了key 即计算属性方法 则会出发sharedProperty.get
+		Object.defineProperty(vm, key, sharedProperty)
     }
     createComputedGetter(key) {
         return function computedGetter() {
+			console.log('this.computedWatchers----',this.computedWatchers);
             var watcher = this.computedWatchers && this.computedWatchers[key];
             if (watcher) {
                 console.log('该计算属性getter触发，watcher：', watcher);
@@ -350,20 +350,9 @@ class ComputedWatcher {
     }
     // 添加一个watcher依赖到这个指令
     addDeps(dep, key) {
-        // let id = dep.id;
-        // this.deps.push(key)
-        // if (!this.newDepIds.has(id)) {
-        // this.newDepIds.add(id);
-        // this.newDeps.push(dep);
-        // if (!this.depIds.has(id)) {
-        // _${this.getter.name}
         dep.addDeps(this, `${key}_${this.getter.name}`);
-        // }
-        // }
     }
-    // Clean up for dependency collection
-    // cleanupDeps() {
-    // }
+   
     // Will be called when a dependency changes.
     update() {
         console.log('2-依赖发生改变，重新计算值，并更新node节点', this);
@@ -381,13 +370,6 @@ class ComputedWatcher {
         this.value = this.get()
         this.dirty = false //表示取过值了
     }
-    // Depend on all deps collected by this watcher.
-    // depend() {
-    //     var i = this.deps.length;
-    //     while (i--) {
-    //         this.deps[i].depend();
-    //     }
-    // }
 }
 
 

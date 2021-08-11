@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <!-- 
+		响应式思路：
+		1-定义某个数据为响应式数据，它会拥有收集访问它的函数的能力。
+		2-定义观察函数，在这个函数内部去访问响应式数据，访问到响应式数据的某个key的时候，会建立一个依赖关系key -> reaction观察函数。
+		3-检测到响应式数据的key的值更新的时候，会去重新执行一遍它所收集的所有reaction观察函数。
+
+	 -->
+    <div id="box"></div>
+    <!-- <script type="module" src="./index.js"></script> -->
+    <script type="module">
+      import { reactive, observe, unobserve } from './index.js';
+
+      const data = reactive(new Map([['a', 1]]));
+      observe(() => {
+        for (let [key, val] of data) {
+          console.log(key, val);
+        }
+      });
+
+      data.set('b', 5);
+      window.data = data;
+    </script>
+  </body>
+</html>
